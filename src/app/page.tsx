@@ -8,7 +8,6 @@ import { useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
-import { OverviewChart } from "@/components/dashboard/overview-chart";
 import { AddTransactionDialog } from "@/components/transactions/add-transaction-dialog";
 import { Button } from "@/components/ui/button";
 import {

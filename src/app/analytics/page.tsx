@@ -38,7 +38,12 @@ import {
   ChartContainer,
   ChartTooltip,
 } from "@/components/ui/chart";
-import { PieChart as RechartsPieChart, Cell } from "recharts";
+import {
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+} from "recharts";
 import { cn } from "@/lib/utils";
 
 const chartConfig = {
@@ -321,42 +326,52 @@ export default function AnalyticsPage() {
                   </div>
                 ) : (
                   <>
-                    <ChartContainer config={chartConfig} className="h-[300px]">
-                      <RechartsPieChart>
-                        <ChartTooltip
-                          content={({ active, payload }) => {
-                            if (active && payload?.[0]?.payload) {
-                              const data = payload[0].payload as {
-                                category: string;
-                                amount: number;
-                              };
-                              return (
-                                <div className="bg-background rounded-lg border p-2 shadow-sm">
-                                  <div className="grid gap-1">
-                                    <span className="text-sm font-medium">
-                                      {data.category}
-                                    </span>
-                                    <span className="text-muted-foreground text-sm">
-                                      ${data.amount.toLocaleString()}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
+                    <ChartContainer
+                      config={chartConfig}
+                      className="h-[300px] w-full"
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RechartsPieChart>
+                          <Pie
+                            data={categoryData}
+                            dataKey="amount"
+                            nameKey="category"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius="80%" // relative, scales dynamically
+                            label={({ name, percent }) =>
+                              `${name} ${(percent * 100).toFixed(2)}%`
                             }
-                            return null;
-                          }}
-                        />
-                        <RechartsPieChart
-                          data={categoryData}
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                        >
-                          {categoryData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
+                          >
+                            {categoryData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <ChartTooltip
+                            content={({ active, payload }) => {
+                              if (active && payload?.[0]?.payload) {
+                                const data = payload[0].payload as {
+                                  category: string;
+                                  amount: number;
+                                };
+                                return (
+                                  <div className="bg-background rounded-lg border p-2 shadow-sm">
+                                    <div className="grid gap-1">
+                                      <span className="text-sm font-medium">
+                                        {data.category}
+                                      </span>
+                                      <span className="text-muted-foreground text-sm">
+                                        ${data.amount.toLocaleString()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
                         </RechartsPieChart>
-                      </RechartsPieChart>
+                      </ResponsiveContainer>
                     </ChartContainer>
                     <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                       {categoryData.map((item) => (

@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
+import { endOfMonth, format, startOfMonth } from "date-fns";
 import {
   Calendar as CalendarIcon,
   Download,
   FileText,
-  TrendingUp,
-  TrendingDown,
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
@@ -40,53 +38,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-// Sample report data
-const monthlyReports = [
-  {
-    month: "January 2024",
-    totalIncome: 5000,
-    totalExpenses: 3500,
-    netIncome: 1500,
-    transactionCount: 42,
-    topCategory: "Food",
-    topCategoryAmount: 850,
-  },
-  {
-    month: "December 2023",
-    totalIncome: 4800,
-    totalExpenses: 3200,
-    netIncome: 1600,
-    transactionCount: 38,
-    topCategory: "Shopping",
-    topCategoryAmount: 920,
-  },
-  {
-    month: "November 2023",
-    totalIncome: 5200,
-    totalExpenses: 3800,
-    netIncome: 1400,
-    transactionCount: 45,
-    topCategory: "Transportation",
-    topCategoryAmount: 680,
-  },
-];
-
-const categoryBreakdown = [
-  { category: "Food", amount: 1250, percentage: 32, transactions: 15 },
-  { category: "Transportation", amount: 890, percentage: 23, transactions: 8 },
-  { category: "Shopping", amount: 680, percentage: 17, transactions: 12 },
-  { category: "Bills", amount: 450, percentage: 12, transactions: 6 },
-  { category: "Entertainment", amount: 320, percentage: 8, transactions: 9 },
-  { category: "Healthcare", amount: 310, percentage: 8, transactions: 4 },
-];
+import { api } from "@/trpc/react";
 
 export default function ReportsPage() {
   const [reportType, setReportType] = useState("monthly");
-  const [dateFrom, setDateFrom] = useState<Date>();
-  const [dateTo, setDateTo] = useState<Date>();
+  const [dateFrom, setDateFrom] = useState<Date>(startOfMonth(new Date()));
+  const [dateTo, setDateTo] = useState<Date>(endOfMonth(new Date()));
+
+  const monthlyQuery = api.transaction.getMonthlySummary.useQuery(
+    {
+    from: new Date(dateFrom), // ensure Date object
+    to: new Date(dateTo),
+  },
+  );
+
+  const categoryQuery = api.transaction.getSummary.useQuery(
+    { from: new Date(dateFrom), to: new Date(dateTo), type: "expense" },
+  );
 
   const handleExportReport = (format: "csv" | "pdf") => {
     // Simulate report export
@@ -204,67 +173,59 @@ export default function ReportsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Month</TableHead>
-                    <TableHead className="text-right">Total Income</TableHead>
-                    <TableHead className="text-right">Total Expenses</TableHead>
-                    <TableHead className="text-right">Net Income</TableHead>
-                    <TableHead className="text-right">Transactions</TableHead>
-                    <TableHead>Top Category</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {monthlyReports.map((report, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">
-                        {report.month}
-                      </TableCell>
-                      <TableCell className="text-right text-green-600">
-                        ${report.totalIncome.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right text-red-600">
-                        ${report.totalExpenses.toLocaleString()}
-                      </TableCell>
-                      <TableCell
-                        className={`text-right font-medium ${
-                          report.netIncome > 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {report.netIncome > 0 ? "+" : ""}$
-                        {report.netIncome.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {report.transactionCount}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {report.topCategory} (${report.topCategoryAmount})
-                        </Badge>
-                      </TableCell>
+              {monthlyQuery.isLoading ? (
+                <p>Loading...</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Month</TableHead>
+                      <TableHead className="text-right">Total Income</TableHead>
+                      <TableHead className="text-right">Total Expenses</TableHead>
+                      <TableHead className="text-right">Net Income</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {monthlyQuery.data?.map((row, index) => {
+                      const netIncome = row.income - row.expense;
+                      return (
+                        <TableRow key={index}>
+                          <TableCell>{row.month}</TableCell>
+                          <TableCell className="text-right text-green-600">
+                            ${row.income}
+                          </TableCell>
+                          <TableCell className="text-right text-red-600">
+                            ${row.expense}
+                          </TableCell>
+                          <TableCell
+                            className={`text-right font-medium ${
+                              netIncome > 0 ? "text-green-600" : "text-red-600"
+                            }`}
+                          >
+                            {netIncome > 0 ? "+" : ""}${netIncome}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         )}
 
         {reportType === "category" && (
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Category Breakdown</CardTitle>
-                <CardDescription>
-                  Spending breakdown by category
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle>Category Breakdown</CardTitle>
+              <CardDescription>Spending breakdown by category</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {categoryQuery.isLoading ? (
+                <p>Loading...</p>
+              ) : (
                 <div className="space-y-4">
-                  {categoryBreakdown.map((category, index) => (
+                  {categoryQuery.data?.map((category, index) => (
                     <div key={index} className="flex items-center space-x-4">
                       <div className="flex-1">
                         <div className="mb-1 flex items-center justify-between">
@@ -272,86 +233,24 @@ export default function ReportsPage() {
                             {category.category}
                           </span>
                           <span className="text-muted-foreground text-sm">
-                            {category.percentage}%
+                            {Math.round(Number(category.total ?? 0))}$
                           </span>
                         </div>
                         <div className="bg-muted h-2 w-full rounded-full">
                           <div
-                            className="bg-primary h-2 rounded-full"
-                            style={{ width: `${category.percentage}%` }}
+                            className="bg-primary h-2 rounded-full max-w-6xl"
+                            style={{
+                              width: `${Number(category.total ?? 0)/100}%`,
+                            }}
                           />
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium">
-                          ${category.amount.toLocaleString()}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {category.transactions} transactions
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Financial Summary</CardTitle>
-                <CardDescription>
-                  Key metrics for the selected period
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="size-4 text-green-600" />
-                      <span className="text-sm">Total Income</span>
-                    </div>
-                    <span className="text-lg font-bold text-green-600">
-                      $5,000
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <TrendingDown className="size-4 text-red-600" />
-                      <span className="text-sm">Total Expenses</span>
-                    </div>
-                    <span className="text-lg font-bold text-red-600">
-                      $3,900
-                    </span>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Net Income</span>
-                      <span className="text-xl font-bold text-green-600">
-                        +$1,100
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">64</div>
-                      <div className="text-muted-foreground text-xs">
-                        Total Transactions
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">$61</div>
-                      <div className="text-muted-foreground text-xs">
-                        Avg. Transaction
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {(reportType === "detailed" || reportType === "trend") && (
